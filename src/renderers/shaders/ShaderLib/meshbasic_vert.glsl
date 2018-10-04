@@ -1,7 +1,8 @@
 #ifdef INSTANCED
-	attribute vec3 instanceOffset;
-	attribute vec3 instanceColor;
-	attribute float instanceScale;
+	attribute vec3 offset;
+	attribute vec3 iColor;
+	attribute float iScale;
+	attribute vec4 orientation;
 #endif
 #include <common>
 #include <uv_pars_vertex>
@@ -14,6 +15,10 @@
 #include <logdepthbuf_pars_vertex>
 #include <clipping_planes_pars_vertex>
 
+vec3 applyQuaternionToVector( vec4 q, vec3 v ){
+	return v + 2.0 * cross( q.xyz, cross( q.xyz, v ) + q.w * v );
+}
+
 void main() {
 
 	#include <uv_vertex>
@@ -22,7 +27,7 @@ void main() {
 
 	#ifdef INSTANCED
 		#ifdef USE_COLOR
-			vColor.xyz = instanceColor.xyz;
+			vColor.xyz = color.xyz;
 		#endif
 	#endif
 
@@ -40,13 +45,20 @@ void main() {
 	#include <begin_vertex>
 
 	#ifdef INSTANCED
-		transformed *= instanceScale;
-		transformed = transformed + instanceOffset;
+		transformed *= iScale;
+		vec3 vPosition = applyQuaternionToVector(orientation, transformed);
 	#endif
 	
 	#include <morphtarget_vertex>
 	#include <skinning_vertex>
-	#include <project_vertex>
+	#ifndef INSTANCED
+		#include <project_vertex>
+	#endif
+	#ifdef INSTANCED
+		vec4 mvPosition = modelViewMatrix * vec4( offset + vPosition, 1.0 );
+
+		gl_Position = projectionMatrix * mvPosition;
+	#endif
 	#include <logdepthbuf_vertex>
 
 	#include <worldpos_vertex>
